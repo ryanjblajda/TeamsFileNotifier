@@ -12,6 +12,11 @@ namespace TeamsFileNotifier.Messaging
         string DebugMessage { get; }
     }
 
+    public class AuthenticationFailureMessage : IMessage 
+    {
+        public string DebugMessage { get; private set; }
+    }
+
     public class BalloonMessage : IMessage
     {
         public string DebugMessage { get; private set; }

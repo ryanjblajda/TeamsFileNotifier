@@ -28,7 +28,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
                        int.TryParse(ipId, System.Globalization.NumberStyles.HexNumber, null, out int value);
                        map[deviceIndex] = value;
 
-                       Log.Debug($"Adding Description Entry: {deviceIndex} with value: {value}");
+                       Log.Debug($"DescriptionParser | Adding Description Entry: {deviceIndex} with value: {value}");
                     }
                 }
             }

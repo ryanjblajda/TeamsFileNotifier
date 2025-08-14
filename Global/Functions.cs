@@ -12,7 +12,7 @@ namespace TeamsFileNotifier.Global
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
-                logger.Information($"Created config folder at: {folderPath}");
+                logger.Information($"Functions | Created config folder at: {folderPath}");
             }
 
             return folderPath;

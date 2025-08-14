@@ -45,13 +45,13 @@ namespace TeamsFileNotifier.Parsing
                     if (generic.CanRead)
                     {
                         int read = await generic.ReadAsync(buffer);
-                        Log.Information($"read {read} bytes from {file}");
+                        Log.Information($"GenericParser | read {read} bytes from {file}");
 
                         if (read > 0) { result = Encoding.ASCII.GetString(buffer); }
                     }
                 }
             }
-            catch (Exception e) { Log.Warning($"failed to open & read file {file} -> {e.Message}"); }
+            catch (Exception e) { Log.Warning($"GenericParser | failed to open & read file {file} -> {e.Message}"); }
 
             return result;
         }

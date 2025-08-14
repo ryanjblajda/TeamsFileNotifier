@@ -21,7 +21,7 @@ class Program
         Log.Logger = ConfigureLogging();
         logger = Log.Logger;
 
-        Log.Information("Starting Logging...");
+        Log.Information("Program | Starting Logging...");
 
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add("Edit Config", null, OnAdjustConfig);
@@ -30,7 +30,7 @@ class Program
         contextMenu.Items.Add("Stop Monitoring", null, OnStopMonitoring);
         contextMenu.Items.Add("Exit", null, OnExit);
 
-        Log.Debug("Configured Tray Options");
+        Log.Debug("Program | Configured Tray Options");
 
         trayIcon = new NotifyIcon
         {
@@ -40,9 +40,9 @@ class Program
             Text = "Teams File Monitor - Updater"
         };
 
-        Log.Debug("Configured Icon");
+        Log.Debug("Program | Configured Icon");
 
-        Log.Debug("Tray Starting");
+        Log.Debug("Program | Tray Starting");
 
         if (LoadConfiguration()) { StartMonitorManager(); }
 
@@ -86,11 +86,11 @@ class Program
         
         Values.Configuration = loader.LoadConfig();
 
-        Authentication.StartAuthentication();
+        Authentication.AuthenticationRoutine();
 
         if (Values.Configuration != null)
         {
-            Log.Information("Configuration Loaded Successfully");
+            Log.Information("Program | Configuration Loaded Successfully");
             ShowBalloon("Success", "Config Loaded");
             result = true;
         }
@@ -103,7 +103,7 @@ class Program
     {
         Task.Factory.StartNew(() =>
         {
-            Log.Information("Creating Monitor Manager");
+            Log.Information("Program | Creating Monitor Manager");
             manager = new FileSystemMonitorManager(Values.MessageBroker);
         });
     }
@@ -118,7 +118,7 @@ class Program
 
     private static void OnOpenLog(object? sender, EventArgs e) {
         try { Process.Start("explorer.exe", Functions.GetDefaultTempPathLocation(Log.Logger)); }
-        catch (Exception ex) { Log.Error($"error opening temp directory {ex.Message}"); }
+        catch (Exception ex) { Log.Error($"Program | error opening temp directory {ex.Message}"); }
     }
 
     private static void OnAdjustConfig(object? sender, EventArgs e) {
@@ -128,7 +128,7 @@ class Program
             Task.Factory.StartNew(() =>
             {
                 if (!File.Exists(path)) {
-                    Log.Warning("no config file found, creating an empty one");
+                    Log.Warning("Program | no config file found, creating an empty one");
                     File.WriteAllText(path, Values.DefaultConfigContents);
                 }
 
@@ -140,13 +140,13 @@ class Program
                 editor.Exited += OnEditorExited;
                 editor.Start();
 
-                Log.Information($"Opening Config File: {path}");
+                Log.Information($"Program | Opening Config File: {path}");
             });
         }
         catch (Exception ex)
         {
             // Handle errors here (e.g., file not found or no associated app)
-            Log.Error($"Error opening file: {ex.Message}");
+            Log.Error($"Program | Error opening file: {ex.Message}");
         }
     }
 

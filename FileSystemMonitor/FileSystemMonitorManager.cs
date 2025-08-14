@@ -32,7 +32,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
         private void ConfigureWatchers()
         {
             Values.Configuration.WatchedFolders.ForEach(delegate (WatchedFolder folder) {
-                if (!Directory.Exists(folder.Path)) { Log.Warning($"Warning: Directory does not exist: {folder.Path}"); }
+                if (!Directory.Exists(folder.Path)) { Log.Warning($"FileSystemMonitorManager | directory does not exist: {folder.Path}"); }
                 else
                 {
                     try
@@ -59,18 +59,18 @@ namespace TeamsFileNotifier.FileSystemMonitor
                         //store handlers in the dict so we can stop monitoring later
                         _handlers[watcher] = (changedHandler, createdHandler, renamedHandler, deletedHandler);
 
-                        Log.Information($"Started watching folder: {folder.Path}, {folder.Extensions.Count} Extensions To Watch: {String.Join(", ", folder.Extensions.Select(item => item.Extension).ToArray())}");
+                        Log.Information($"FileSystemMonitorManager | Started watching folder: {folder.Path}, {folder.Extensions.Count} Extensions To Watch: {String.Join(", ", folder.Extensions.Select(item => item.Extension).ToArray())}");
 
                     }
-                    catch (Exception e) { Log.Fatal($"exception encountered attempting to monitor folder {folder.Path} -> {e.Message}"); }
+                    catch (Exception e) { Log.Fatal($"FileSystemMonitorManager | exception encountered attempting to monitor folder {folder.Path} -> {e.Message}"); }
                 }
             });
 
             if (_watchers.Count > 0) {
-                Log.Information($"Started monitoring {_watchers.Count} folders");
+                Log.Information($"FileSystemMonitorManager | Started monitoring {_watchers.Count} folders");
                 Values.MessageBroker.Publish(new BalloonMessage("success started monitoring", "Monitoring Started", $"Monitoring {_watchers.Count} Folders", ToolTipIcon.Info)); }
             else {
-                Log.Information($"Failure to start monitoring..no folders available");
+                Log.Information($"FileSystemMonitorManager | Failure to start monitoring..no folders available");
                 Values.MessageBroker.Publish(new BalloonMessage("no folders to monitor", "Monitoring Failed", "No Folders Configured", ToolTipIcon.Error)); }
         }
 
@@ -104,10 +104,10 @@ namespace TeamsFileNotifier.FileSystemMonitor
                             watcher.EnableRaisingEvents = false;
                             watcher.Dispose();
 
-                            Log.Information($"unsubscribe from {watcher.Path}");
+                            Log.Information($"FileSystemMonitorManager | unsubscribe from {watcher.Path}");
                         }
                         catch(Exception e) { 
-                            Log.Fatal($"exception unsubscribing from {watcher.Path}");
+                            Log.Fatal($"FileSystemMonitorManager | exception unsubscribing from {watcher.Path}");
                             error = e.Message;
                         }
                     });
@@ -118,12 +118,12 @@ namespace TeamsFileNotifier.FileSystemMonitor
                     result = true;
                 }
                 catch(Exception e) { 
-                    Log.Fatal($"exception attempting to unsubscribe");
+                    Log.Fatal($"FileSystemMonitorManager | exception attempting to unsubscribe");
                     error = e.Message;
                 }
                 finally { Values.MessageBroker.Publish(new BalloonMessage("results", result ? "Stopped Monitoring" : "Failed To Stop Monitoring", error, result ? ToolTipIcon.Info : ToolTipIcon.Error)); }
             }
-            else { Log.Information("no watchers to unsubscribe from");  }
+            else { Log.Information("FileSystemMonitorManager | no watchers to unsubscribe from");  }
         }
 
         private bool AreHashesEqual(byte[] a, byte[] b)
@@ -138,7 +138,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
 
         private void OnDebounceTimerExpired(string path)
         {
-            Log.Debug($"Debounce timer fired for: {path}");
+            Log.Debug($"FileSystemMonitorManager | Debounce timer fired for: {path}");
 
             if (!File.Exists(path)) return;
 
@@ -151,19 +151,19 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 if (AreHashesEqual(newHash, oldHash))
                 {
                     // No real content change
-                    Log.Debug("Hashes are equal, ignoring changes");
+                    Log.Debug("FileSystemMonitorManager | Hashes are equal, ignoring changes");
                     return;
                 }
             }
 
             FileInfo fileInfo = new FileInfo(path);
             long sizeInBytes = fileInfo.Length;
-            Log.Debug($"File Current Size: {sizeInBytes}");
+            Log.Debug($"FileSystemMonitorManager | File Current Size: {sizeInBytes}");
 
             // Content changed: update hash and handle event
             fileHashes[path] = newHash;
 
-            Log.Debug($"Hashes are not equal, file content HAS changed: {path}");
+            Log.Debug($"FileSystemMonitorManager | Hashes are not equal, file content HAS changed: {path}");
 
             _messaging.Publish(new FileChangedMessage("pass to parser", path));
         }
@@ -176,7 +176,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 string extension = Path.GetExtension(e.FullPath);
                 string extensionLower = extension.ToLower();
 
-                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Debug($"File deleted: {e.FullPath}"); }
+                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Debug($"FileSystemMonitorManager | File deleted: {e.FullPath}"); }
             }
         }
 
@@ -188,7 +188,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 string extension = Path.GetExtension(e.FullPath);
                 string extensionLower = extension.ToLower();
 
-                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Debug($"File renamed: {e.FullPath}"); }
+                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Debug($"FileSystemMonitorManager | File renamed: {e.FullPath}"); }
             }
         }
 
@@ -201,7 +201,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 string extensionLower = extension.ToLower();
 
                 if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { 
-                    Log.Debug($"Raw file changed: {e.FullPath}");
+                    Log.Debug($"FileSystemMonitorManager | Raw file changed: {e.FullPath}");
                     FileChanged(e.FullPath);
                 }
             }

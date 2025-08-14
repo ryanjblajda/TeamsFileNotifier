@@ -34,7 +34,7 @@ namespace TeamsFileNotifier.Configuration
             }
             catch (Exception ex)
             {
-                Log.Warning($"Error loading config file: {ex.Message}");
+                Log.Warning($"ConfigurationLoader | Error loading config file: {ex.Message}");
                 return null;
             }
         }
@@ -47,11 +47,11 @@ namespace TeamsFileNotifier.Configuration
             {
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(configFile, json);
-                Log.Information($"Config saved to: {configFile}");
+                Log.Information($"ConfigurationLoader | Config saved to: {configFile}");
             }
             catch (Exception ex)
             {
-                Log.Error($"Error saving config file: {ex.Message}");
+                Log.Error($"ConfigurationLoader | Error saving config file: {ex.Message}");
             }
         }
     }

@@ -39,7 +39,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
                     if (deviceIndexToIPIDMap.ContainsKey(device.DeviceIndex)) { device.IPID = deviceIndexToIPIDMap[device.DeviceIndex]; }
                     if (ipAddressMap.ContainsKey(device.IPID)) { device.IPAddress = ipAddressMap[device.IPID]; }
 
-                    Log.Debug($"{device.DeviceName} - {device.DeviceComment} - {device.DeviceIndex} // {device.IPID} - {device.IPAddress}");
+                    Log.Debug($"LPZFileHandler | {device.DeviceName} - {device.DeviceComment} - {device.DeviceIndex} // {device.IPID} - {device.IPAddress}");
                 });
 
                 content = GenerateTeamsMessageContent(cloudInfo.Devices);
@@ -69,7 +69,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
         {
             var ipAddressEntry = archive.GetEntry(filename);
             if (ipAddressEntry == null) { 
-                Log.Information($"File '{filename}' not found in archive.");
+                Log.Information($"LPZFileHandler | File '{filename}' not found in archive.");
                 //Values.MessageBroker.Publish(new BalloonMessage("file not found", "File Not Found!", $"File '{filename}' not found in archive.", ToolTipIcon.Error));
                 return null;
             }
@@ -87,7 +87,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
             //find ip id file
             var ipidEntry = archive.GetEntry(filename);
             if (ipidEntry == null) { 
-                Log.Information($"File '{filename}' not found in archive.");
+                Log.Information($"LPZFileHandler | File '{filename}' not found in archive.");
                 //Values.MessageBroker.Publish(new BalloonMessage("file not found", "File Not Found!", $"File '{filename}' not found in archive.", ToolTipIcon.Error));
                 return null;
             }
@@ -104,7 +104,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
             //find cloud info file
             var devicesEntry = archive.GetEntry(filename);
             if (devicesEntry == null) {
-                Log.Information($"File '{filename}' not found in archive.");
+                Log.Information($"LPZFileHandler | File '{filename}' not found in archive.");
                 //Values.MessageBroker.Publish(new BalloonMessage("file not found", "File Not Found!", $"File '{filename}' not found in archive.", ToolTipIcon.Error));
                 return null;
             }

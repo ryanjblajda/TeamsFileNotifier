@@ -32,14 +32,14 @@ namespace TeamsFileNotifier.Notifications
             //need to check if content is actually different, and only update if it is
             if (this._sentMessages.ContainsKey(message.Filename)) {
                 if (this._sentMessages[message.Filename].Content != message.Content) {
-                    Log.Information($"Content for {message.Filename} Has Changed, Do Update");
+                    Log.Information($"TeamsNotifier | Content for {message.Filename} Has Changed, Do Update");
                     sendUpdate = true; 
                 }
-                else { Log.Debug($"Content For {message.Filename} Has Not Changed, Doing Nothing"); }
+                else { Log.Debug($"TeamsNotifier | Content For {message.Filename} Has Not Changed, Doing Nothing"); }
             }
             else //if not this is a completely new request, so fire it
             {
-                Log.Information($"No {message.Filename} Key Found, First Update Since Start, Updating & Storing Key");
+                Log.Information($"TeamsNotifier | No {message.Filename} Key Found, First Update Since Start, Updating & Storing Key");
                 sendUpdate = true;
             }
             //store the most recent change to the message contents so we are always updating against the last change
@@ -58,7 +58,7 @@ namespace TeamsFileNotifier.Notifications
 
         private string GetWebhook(string path)
         {
-            Log.Debug($"file changed in path: {path}");
+            Log.Debug($"TeamsNotifier | file changed in path: {path}");
 
             string result = String.Empty;
 
@@ -66,7 +66,7 @@ namespace TeamsFileNotifier.Notifications
 
             if (folder != null) { result = folder.TeamsWebhook; }
 
-            Log.Debug($"raw webook from config -> result: {result}");
+            Log.Debug($"TeamsNotifier | raw webook from config -> result: {result}");
 
             return result;
         }
@@ -81,8 +81,8 @@ namespace TeamsFileNotifier.Notifications
                 
                 var response = client.PostAsync(url, message).ContinueWith(task =>
                 {
-                    if (task.IsCanceled) { Log.Warning("canceled"); }
-                    else if (task.IsFaulted) { Log.Error("faulted"); }
+                    if (task.IsCanceled) { Log.Warning("TeamsNotifier | canceled"); }
+                    else if (task.IsFaulted) { Log.Error("TeamsNotifier | faulted"); }
                     else if (task.IsCompletedSuccessfully) {
                         var response = task.Result;
                         Log.Debug(response.ToString());
@@ -91,17 +91,21 @@ namespace TeamsFileNotifier.Notifications
                     }
 
                     if (responseCode == HttpStatusCode.OK || responseCode == HttpStatusCode.Created) {
-                        Log.Information($"succesful update to teams --> {responseCode}");
+                        Log.Information($"TeamsNotifier | succesful update to teams --> {responseCode}");
                         Values.MessageBroker.Publish(new BalloonMessage("show success", "Update Successs", " ", ToolTipIcon.Info, 1000)); }
-                    else { 
+                    else if (responseCode == HttpStatusCode.Unauthorized) { 
+                        Log.Warning($"TeamsNotifier | failure to update {(task.Exception == null ? task.Result.ToString() : task.Exception.Message)} --> http {responseCode.ToString()}");
+                        Values.MessageBroker.Publish(new AuthenticationFailureMessage());
+                    }
+                    else {
                         Values.MessageBroker.Publish(new BalloonMessage("show failure", "Update Failed", task.Exception == null ? task.Result.ToString() : task.Exception.Message, ToolTipIcon.Error, 1000));
-                        Log.Warning($"failure to update {(task.Exception == null ? task.Result.ToString() : task.Exception.Message)} --> http {responseCode.ToString()}");
+                        Log.Warning($"TeamsNotifier | failure to update {(task.Exception == null ? task.Result.ToString() : task.Exception.Message)} --> http {responseCode.ToString()}");
                     }
                 });
             }
             catch (Exception ex)
             {
-                Log.Fatal($"Exception posting to Teams: {ex.Message}");
+                Log.Fatal($"TeamsNotifier | Exception posting to Teams: {ex.Message}");
             }
         }
 
@@ -114,7 +118,7 @@ namespace TeamsFileNotifier.Notifications
             if (string.IsNullOrWhiteSpace(webhook))
             {
                 Values.MessageBroker.Publish(new BalloonMessage("cannot be null exception", "URL Error!", "Teams URL cannot be empty!", ToolTipIcon.Error, 1000));
-                Log.Warning($"{webhook} --> resulted in teams URL empty!");
+                Log.Warning($"TeamsNotifier | {webhook} --> resulted in teams URL empty!");
                 return ("", "");
             }
 
@@ -131,7 +135,7 @@ namespace TeamsFileNotifier.Notifications
                 if (string.IsNullOrEmpty(teamId))
                 {
                     Values.MessageBroker.Publish(new BalloonMessage("team id null exception", "Team ID Error!", "Team ID cannot be empty!", ToolTipIcon.Error, 1000));
-                    Log.Warning($"{webhook} --> resulted in teams ID empty!");
+                    Log.Warning($"TeamsNotifier | {webhook} --> resulted in teams ID empty!");
                     return ("", "");
                 }
 
@@ -143,7 +147,7 @@ namespace TeamsFileNotifier.Notifications
                 if (segments.Length < 3 || segments[0] != "l" || segments[1] != "channel")
                 {
                     Values.MessageBroker.Publish(new BalloonMessage("invalid format exception", "Channel URL Error!", "Invalid Teams channel URL format!", ToolTipIcon.Error, 1000));
-                    Log.Warning($"{webhook} --> resulted in teams channel url format invalid!");
+                    Log.Warning($"TeamsNotifier | {webhook} --> resulted in teams channel url format invalid!");
                     return ("", "");
                 }
 
@@ -152,11 +156,11 @@ namespace TeamsFileNotifier.Notifications
                 if (string.IsNullOrEmpty(channelId))
                 {
                     Values.MessageBroker.Publish(new BalloonMessage("team id null exception", "Channel ID Error!", "Channel ID not found in URL!", ToolTipIcon.Error, 1000));
-                    Log.Warning($"{webhook} --> resulted in teams channel id empty!");
+                    Log.Warning($"TeamsNotifier | {webhook} --> resulted in teams channel id empty!");
                     return ("", "");
                 }
             }
-            Log.Debug($"retrieved team: {teamId} - channel: {channelId}");
+            Log.Debug($"TeamsNotifier | retrieved team: {teamId} - channel: {channelId}");
             return (teamId, channelId);
         }
 
@@ -189,8 +193,8 @@ namespace TeamsFileNotifier.Notifications
 
             var url = $"https://graph.microsoft.com/v1.0/teams/{teamId}/channels/{channelId}/messages";
 
-            Log.Information($"generated microsoft graph url {url}");
-            Log.Debug($"generated card content {json}");
+            Log.Information($"TeamsNotifier | generated microsoft graph url {url}");
+            Log.Debug($"TeamsNotifier | generated card content {json}");
 
             return (url, content);
         }

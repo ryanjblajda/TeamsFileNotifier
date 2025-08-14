@@ -32,7 +32,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
                             {
                                 result[ipid] = "";
                                 temp[idx] = ipid;
-                                Log.Debug($"Adding IP Table Address Entry To Temp Map: {idx} == {ipid}");
+                                Log.Debug($"IPTableParser | Adding IP Table Address Entry To Temp Map: {idx} == {ipid}");
                             }
                         }
                     }
@@ -42,7 +42,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
                         {
                             result[temp[idx]] = value;
 
-                            Log.Debug($"Assigning Address To IP Table Entry: {temp[idx]} with value: {value} // idx == {idx}");
+                            Log.Debug($"IPTableParser | Assigning Address To IP Table Entry: {temp[idx]} with value: {value} // idx == {idx}");
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Identity.Client;
 using Serilog;
+using TeamsFileNotifier.Messaging;
 using System.Security.Cryptography;
 using TeamsFileNotifier.Global;
 
@@ -7,14 +8,26 @@ namespace TeamsFileNotifier.Authentication
 {
     internal static class Authentication
     {
+        private static readonly System.Threading.Timer tokenExpirationTimer = new System.Threading.Timer(OnTokenExpired);
         private static readonly string[] Scopes = new[] { "User.Read", "Group.Read.All", "ChannelMessage.Send", "ChannelMessage.Read.All" };
         private const string TenantId = "43144288-676d-457c-a9a7-f271a812b8ac"; // e.g., 72f988bf-xxxx-xxxx-xxxx-2d7cd011db47
         private static readonly string Authority = $"https://login.microsoftonline.com/{TenantId}";
 
+        static Authentication()
+        {
+            Values.MessageBroker.Subscribe<AuthenticationFailureMessage>(OnAuthenticationFailed);
+        }
+
+        private static void OnAuthenticationFailed(AuthenticationFailureMessage message)
+        {
+            Log.Warning("Authentication | received an authentication failure message, so we will attempt to authenticate");
+            AuthenticationRoutine();
+        }
+
         private static void ConfigureTokenCache(ITokenCache tokenCache)
         {
             string tokenFileFullPath = Path.Combine(Functions.GetDefaultTempPathLocation(Log.Logger), Values.DefaultTokenCacheFilename);
-            Log.Information(tokenFileFullPath);
+            Log.Information($"Authentication | user token cache located @ {tokenFileFullPath}");
 
             tokenCache.SetBeforeAccess(args =>
             {
@@ -25,7 +38,7 @@ namespace TeamsFileNotifier.Authentication
                         var protectedData = File.ReadAllBytes(tokenFileFullPath);
                         var data = ProtectedData.Unprotect(protectedData, null, DataProtectionScope.CurrentUser);
                         args.TokenCache.DeserializeMsalV3(data);
-                        Log.Information("Loading Current User Token Cache");
+                        Log.Information("Authentication | Loading Current User Token Cache");
                     }
                 }
             });
@@ -40,38 +53,91 @@ namespace TeamsFileNotifier.Authentication
                         var data = args.TokenCache.SerializeMsalV3();
                         var protectedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
                         File.WriteAllBytes(tokenFileFullPath, protectedData);
-                        Log.Information("Writing Current User Cache");
+                        Log.Information("Authentication | Writing Current User Cache");
                     }
                 }
             });
         }
 
-        internal static async void StartAuthentication()
+        internal static void OnTokenExpired(object? state)
+        {
+            Log.Information("Authentication | token about to expire, firing authentication routine to renew token");
+            AuthenticationRoutine();
+        }
+
+        internal static async Task<AuthenticationResult> GetAuthenticationTokenSilent(IPublicClientApplication app, IAccount account)
+        {
+            // Try to get token silently (from cache)
+            var result = await app.AcquireTokenSilent(Scopes, account).ExecuteAsync();
+            Log.Information($"Authentication | token acquired silently -> expires @ {result.ExpiresOn}");
+
+            return result;
+        }
+
+        internal static async Task<AuthenticationResult> GetAuthenticationTokenInteractive(IPublicClientApplication app)
+        {
+            // No token cached or expired, so prompt user login
+            var result = await app.AcquireTokenInteractive(Scopes).WithPrompt(Prompt.SelectAccount).ExecuteAsync();
+            //log
+            Log.Information($"Authentication | token acquired interactively -> expires @ {result.ExpiresOn}");
+
+            return result;
+        }
+
+        internal static async Task<IAccount?> GetUsersFirstAccount(IPublicClientApplication app)
+        {
+            var accounts = await app.GetAccountsAsync();
+            return accounts.FirstOrDefault();
+        }
+
+        private static long GetDueTime(DateTimeOffset offset)
+        {
+            //default to 1 hr
+            long result = 1000 * 60 * 60;
+            //determine the time until expiration of the token
+            TimeSpan timeUntilExpiry = offset - DateTimeOffset.UtcNow;
+            //if the token has already expired, we will set the time until expiry to zero, so that the token is refreshed immediately
+            if (timeUntilExpiry < TimeSpan.Zero) { timeUntilExpiry = TimeSpan.Zero; }
+            //convert to the long, minus 1 second from the expiration time
+            result = (long)timeUntilExpiry.TotalMilliseconds - 1000;
+            Log.Information($"Authentication | the token will expire in {timeUntilExpiry.TotalMilliseconds}ms, so we will have the timer fire in {result}ms");
+            //return the result
+            return result;
+        }
+
+        internal static async void AuthenticationRoutine()
         {
             var app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
             
             ConfigureTokenCache(app.UserTokenCache);
 
-            AuthenticationResult result = null;
+            AuthenticationResult? result = null;
 
-            var accounts = await app.GetAccountsAsync();
-            var firstAccount = accounts.FirstOrDefault();
+            Task<IAccount?> getAccountResult = GetUsersFirstAccount(app);
+            var firstAccount = getAccountResult.Result;
 
-            try
+            //if the account not null, then we should be able to silently retreive a token
+            if (firstAccount != null)
             {
-                // Try to get token silently (from cache)
-                result = await app.AcquireTokenSilent(Scopes, firstAccount).ExecuteAsync();
-                Log.Information("Token acquired silently.");
+                try { result = await GetAuthenticationTokenSilent(app, firstAccount); }
+                catch (Exception e) { Log.Fatal($"Authentication | unable to silently retrieve token -> {e.Message}"); }
             }
-            catch (MsalUiRequiredException)
+            else
             {
-                // No token cached or expired, so prompt user login
-                result = await app.AcquireTokenInteractive(Scopes).WithPrompt(Prompt.SelectAccount).ExecuteAsync();
-
-                Log.Information("Token acquired interactively.");
+                //catch any exceptions, but in theory since we know the account is null, we shouldnt fire any
+                try { result = await GetAuthenticationTokenInteractive(app); }
+                //log the fatal error
+                catch (Exception e) { Log.Fatal($"Authentication | exception encountered attempting to interactively retrieve a token -> {e.Message}"); }
             }
 
-            Values.AccessToken = result.AccessToken;
+            if (result != null) { 
+                //store the token
+                Values.AccessToken = result.AccessToken;
+                //restart the timer so the token is refreshed when needed
+                tokenExpirationTimer.Change(GetDueTime(result.ExpiresOn), Timeout.Infinite);
+                Log.Information("Authentication | starting token refresh timer");
+            }
+            else { Log.Error("Authentication | unable to store token because it is null"); }
         }
     }
 }
