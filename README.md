@@ -94,8 +94,7 @@ These frameworks cam in mighty handy getting this project off the ground.
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+If you are interested in contributing, just clone the repo and start making changes in a fork and fire a pull request. To use the notifier, go to the Installation section!
 
 ### Prerequisites
 
