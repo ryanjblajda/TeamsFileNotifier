@@ -4,13 +4,13 @@ using TeamsFileNotifier.Messaging;
 using TeamsFileNotifier.Configuration;
 using TeamsFileNotifier.FileSystemMonitor;
 using TeamsFileNotifier.Global;
+using TeamsFileNotifier.Authentication;
+using System.Diagnostics;
 
 class Program
 {
     public static ContextMenuStrip contextMenu;
-    public static Configuration? configuration;
     public static NotifyIcon trayIcon;
-    public static MessageBroker messaging;
     public static FileSystemMonitorManager manager;
     public static ILogger logger;
     public static readonly string tempPath = "./";
@@ -25,6 +25,7 @@ class Program
 
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add("Edit Config", null, OnAdjustConfig);
+        contextMenu.Items.Add("Open Log", null, OnOpenLog);
         contextMenu.Items.Add("Start Monitoring", null, OnStartMonitoring);
         contextMenu.Items.Add("Stop Monitoring", null, OnStopMonitoring);
         contextMenu.Items.Add("Exit", null, OnExit);
@@ -43,19 +44,17 @@ class Program
 
         Log.Debug("Tray Starting");
 
-        LoadConfiguration();
+        if (LoadConfiguration()) { StartMonitorManager(); }
 
-        Log.Debug("Beginning Monitoring");
-
-        ShowBalloon("Successful App Start", "Monitoring Active");
-
-        if (configuration != null) { OnStartMonitoring(null, new EventArgs()); }
-
-        messaging = new MessageBroker();
-
-        messaging.Subscribe<FileChangedMessage>(OnFileChangedMessage);
+        Values.MessageBroker.Subscribe<FileChangedMessage>(OnFileChangedMessage);
+        Values.MessageBroker.Subscribe<BalloonMessage>(OnBalloonMessage);
 
         Application.Run();
+    }
+
+    private static void OnBalloonMessage(BalloonMessage message)
+    {
+        ShowBalloon(message.Title, message.Text, message.Icon, message.Timeout);
     }
 
     private static void OnFileChangedMessage(FileChangedMessage message)
@@ -68,24 +67,45 @@ class Program
     private static Logger ConfigureLogging()
     {
         LoggerConfiguration config = new LoggerConfiguration();
-        config.MinimumLevel.Debug();
-        config.WriteTo.File(Path.Combine(Functions.GetDefaultTempPathLocation(logger), Values.Namespace + ".log"), rollingInterval: RollingInterval.Day);
+
+        #if DEBUG
+            config.MinimumLevel.Debug();
+        #else
+            config.MinimumLevel.Information();
+        #endif
+        config.WriteTo.File(Path.Combine(Functions.GetDefaultTempPathLocation(logger), Values.Namespace + "-.log"), rollingInterval: RollingInterval.Day);
         config.WriteTo.Debug(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
 
         return config.CreateLogger();
     }
 
-    private static void LoadConfiguration()
+    private static bool LoadConfiguration()
     {
+        bool result = false;
         ConfigurationLoader loader = new ConfigurationLoader(logger);
-        configuration = loader.LoadConfig();
+        
+        Values.Configuration = loader.LoadConfig();
 
-        if (configuration != null) {
+        Authentication.StartAuthentication();
+
+        if (Values.Configuration != null)
+        {
             Log.Information("Configuration Loaded Successfully");
-            ShowBalloon("Success", "Config Loaded"); }
-        else { 
-            ShowBalloon("Error", "Config Not Loaded!"); 
+            ShowBalloon("Success", "Config Loaded");
+            result = true;
         }
+        else { ShowBalloon("Error", "Config Not Loaded!", ToolTipIcon.Warning); }
+
+        return result;
+    }
+
+    public static void StartMonitorManager()
+    {
+        Task.Factory.StartNew(() =>
+        {
+            Log.Information("Creating Monitor Manager");
+            manager = new FileSystemMonitorManager(Values.MessageBroker);
+        });
     }
 
     public static void ShowBalloon(string title, string text, ToolTipIcon icon = ToolTipIcon.Info, int timeout = 3000)
@@ -96,12 +116,58 @@ class Program
         trayIcon.ShowBalloonTip(timeout);
     }
 
-    private static void OnAdjustConfig(object? sender, EventArgs e) { }
-    private static void OnStartMonitoring(object? sender, EventArgs e) {
-        Task.Factory.StartNew(() => {
-            manager = new FileSystemMonitorManager(configuration, messaging);
-        });
+    private static void OnOpenLog(object? sender, EventArgs e) {
+        try { Process.Start("explorer.exe", Functions.GetDefaultTempPathLocation(Log.Logger)); }
+        catch (Exception ex) { Log.Error($"error opening temp directory {ex.Message}"); }
     }
-    private static void OnStopMonitoring(object? sender, EventArgs e) { }
+
+    private static void OnAdjustConfig(object? sender, EventArgs e) {
+        try
+        {
+            string path = Path.Combine(Functions.GetDefaultTempPathLocation(Log.Logger), Values.DefaultConfigFilename);
+            Task.Factory.StartNew(() =>
+            {
+                if (!File.Exists(path)) {
+                    Log.Warning("no config file found, creating an empty one");
+                    File.WriteAllText(path, Values.DefaultConfigContents);
+                }
+
+                Process editor = new Process();
+
+                editor.StartInfo = new ProcessStartInfo(path, Values.DefaultConfigFilename) { UseShellExecute = true };
+                editor.EnableRaisingEvents = true;
+
+                editor.Exited += OnEditorExited;
+                editor.Start();
+
+                Log.Information($"Opening Config File: {path}");
+            });
+        }
+        catch (Exception ex)
+        {
+            // Handle errors here (e.g., file not found or no associated app)
+            Log.Error($"Error opening file: {ex.Message}");
+        }
+    }
+
+    private static void OnEditorExited(object? sender, EventArgs e)
+    {
+        if (sender != null)
+        {
+            Process editor = (Process)sender;
+            editor.Exited -= OnEditorExited;
+        }
+
+        LoadConfiguration();
+        OnStartMonitoring(null, new EventArgs());
+    }
+
+    private static void OnStartMonitoring(object? sender, EventArgs e) {
+        if (manager != null) { manager.StartWatchers(); }
+        else { StartMonitorManager(); }
+    }
+    private static void OnStopMonitoring(object? sender, EventArgs e) {
+        if (manager != null) manager.StopWatchers();
+    }
     private static void OnExit(object? sender, EventArgs e) { Application.Exit(); }
 }
