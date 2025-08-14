@@ -27,10 +27,10 @@
   <a href="https://github.com/ryanjblajda/TeamsFileNotifier/">
   </a>
 
-  <h3 align="center">Best-README-Template</h3>
+  <h3 align="center">TeamsFileNotifier</h3>
 
   <p align="center">
-    An awesome README template to jumpstart your projects!
+    A simple tray app to notify your team members when new files are ready for deployment
     <br />
     <a href="https://github.com/ryanjblajda/TeamsFileNotifier/"><strong>Explore the docs »</strong></a>
     <br />
