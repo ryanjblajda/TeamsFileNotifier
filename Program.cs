@@ -6,6 +6,7 @@ using TeamsFileNotifier.FileSystemMonitor;
 using TeamsFileNotifier.Global;
 using TeamsFileNotifier.Authentication;
 using System.Diagnostics;
+using System.Threading;
 
 class Program
 {
@@ -44,12 +45,34 @@ class Program
 
         Log.Debug("Program | Tray Starting");
 
-        if (LoadConfiguration()) { StartMonitorManager(); }
+        if (!IsNewInstance()) { DuplicateInstanceExit(); }
+        else {
 
-        Values.MessageBroker.Subscribe<FileChangedMessage>(OnFileChangedMessage);
-        Values.MessageBroker.Subscribe<BalloonMessage>(OnBalloonMessage);
+            if (LoadConfiguration()) { StartMonitorManager(); }
 
-        Application.Run();
+            Values.MessageBroker.Subscribe<FileChangedMessage>(OnFileChangedMessage);
+            Values.MessageBroker.Subscribe<BalloonMessage>(OnBalloonMessage);
+
+            Application.Run();
+        }
+    }
+
+    private static void DuplicateInstanceExit()
+    {
+        ShowBalloon("Exiting....", "Only a single instance of the application can be running at a time.", ToolTipIcon.Warning, 2500);
+        //creater a timer
+        System.Threading.Timer timer = new System.Threading.Timer((o) => OnExit(o, new EventArgs()));
+        //fire it off after 3 seconds so balloon can show
+        timer.Change(3000, Timeout.Infinite);
+    }
+
+    private static bool IsNewInstance()
+    {
+        bool isNew = false;
+
+        Values.SingleInstanceMutex = new Mutex(true, Values.Namespace, out isNew);
+
+        return isNew;
     }
 
     private static void OnBalloonMessage(BalloonMessage message)
