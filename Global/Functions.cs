@@ -17,5 +17,16 @@ namespace TeamsFileNotifier.Global
 
             return folderPath;
         }
+
+        public static bool IsChildPath(string parentPath, string childPath)
+        {
+            string fullParent = Path.GetFullPath(parentPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            string fullChild = Path.GetFullPath(childPath);
+
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+            return fullChild.StartsWith(fullParent, comparison);
+        }
     }
 }
