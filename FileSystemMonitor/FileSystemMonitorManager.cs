@@ -11,43 +11,119 @@ namespace TeamsFileNotifier.FileSystemMonitor
 {    
     public class FileSystemMonitorManager
     {
-        private List<FileSystemWatcher> _watchers;
+        //a list of the watchers to be stored for later use, and unsubscribing
+        private readonly List<FileSystemWatcher> _watchers;
+        private readonly Dictionary<FileSystemWatcher, (FileSystemEventHandler changed, FileSystemEventHandler created, RenamedEventHandler renamed, FileSystemEventHandler deleted)> _handlers;
+        //a reference to the message broker...which is not needed but i dont feel like changing functionality
         private readonly MessageBroker _messaging;
-        private Configuration.Configuration _config;
+        //stores timers for use to debounce each file when it changes and restart the timers as needed
         private readonly ConcurrentDictionary<string, Timer> _timers = new ConcurrentDictionary<string, Timer>();
-        ConcurrentDictionary<string, byte[]> fileHashes = new ConcurrentDictionary<string, byte[]>();
+        //stores the hashes so we can make sure that the file's contents actually changed
+        private readonly ConcurrentDictionary<string, byte[]> fileHashes = new ConcurrentDictionary<string, byte[]>();
 
-        public FileSystemMonitorManager(Configuration.Configuration configuration, MessageBroker messaging) {
+        public FileSystemMonitorManager(MessageBroker messaging) {
             _messaging = messaging;
             _watchers = new List<FileSystemWatcher>();
-            _config = configuration;
+            _handlers = new Dictionary<FileSystemWatcher, (FileSystemEventHandler changed, FileSystemEventHandler created, RenamedEventHandler renamed, FileSystemEventHandler deleted)> { };
 
-            ConfigureWatchers();
+            StartWatchers();
         }
 
         private void ConfigureWatchers()
         {
-            _config.WatchedFolders.ForEach(delegate (WatchedFolder folder) {
+            Values.Configuration.WatchedFolders.ForEach(delegate (WatchedFolder folder) {
                 if (!Directory.Exists(folder.Path)) { Log.Warning($"Warning: Directory does not exist: {folder.Path}"); }
                 else
                 {
-                    var watcher = new FileSystemWatcher(folder.Path)
+                    try
                     {
-                        IncludeSubdirectories = true,
-                        EnableRaisingEvents = true,
-                        NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size
-                    };
+                        var watcher = new FileSystemWatcher(folder.Path)
+                        {
+                            IncludeSubdirectories = true,
+                            EnableRaisingEvents = true,
+                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size
+                        };
 
-                    watcher.Changed += (s, e) => OnFileChanged(e, folder);
-                    watcher.Created += (s, e) => OnFileChanged(e, folder);
-                    watcher.Renamed += (s, e) => OnFileRenamed(e, folder);
-                    watcher.Deleted += (s, e) => OnFileDeleted(e, folder);
+                        FileSystemEventHandler  changedHandler = (s, e) => OnFileChanged(e, folder);
+                        FileSystemEventHandler  createdHandler = (s, e) => OnFileChanged(e, folder);
+                        RenamedEventHandler     renamedHandler = (s, e) => OnFileRenamed(e, folder);
+                        FileSystemEventHandler  deletedHandler = (s, e) => OnFileDeleted(e, folder);
 
-                    _watchers.Add(watcher);
+                        watcher.Changed += changedHandler;
+                        watcher.Created += createdHandler;
+                        watcher.Renamed += renamedHandler;
+                        watcher.Deleted += deletedHandler;
 
-                    Log.Information($"Started watching folder: {folder.Path}, {folder.Extensions.Count} Extensions To Watch: {String.Join(',', folder.Extensions.Select(item => item.Extension).ToArray())}");
+                        //store in the list
+                        _watchers.Add(watcher);
+                        //store handlers in the dict so we can stop monitoring later
+                        _handlers[watcher] = (changedHandler, createdHandler, renamedHandler, deletedHandler);
+
+                        Log.Information($"Started watching folder: {folder.Path}, {folder.Extensions.Count} Extensions To Watch: {String.Join(", ", folder.Extensions.Select(item => item.Extension).ToArray())}");
+
+                    }
+                    catch (Exception e) { Log.Fatal($"exception encountered attempting to monitor folder {folder.Path} -> {e.Message}"); }
                 }
             });
+
+            if (_watchers.Count > 0) {
+                Log.Information($"Started monitoring {_watchers.Count} folders");
+                Values.MessageBroker.Publish(new BalloonMessage("success started monitoring", "Monitoring Started", $"Monitoring {_watchers.Count} Folders", ToolTipIcon.Info)); }
+            else {
+                Log.Information($"Failure to start monitoring..no folders available");
+                Values.MessageBroker.Publish(new BalloonMessage("no folders to monitor", "Monitoring Failed", "No Folders Configured", ToolTipIcon.Error)); }
+        }
+
+        public void StartWatchers()
+        {
+            StopWatchers();
+            ConfigureWatchers();
+        }
+
+        public void StopWatchers()
+        {
+            bool result = false;
+            string error = $"{_watchers.Count} Folders";
+
+            if (_watchers.Count != 0) {
+                try
+                {
+                    _watchers.ForEach(delegate (FileSystemWatcher watcher)
+                    {
+                        try
+                        {
+                            if (_handlers.ContainsKey(watcher))
+                            {
+                                watcher.Changed -= _handlers[watcher].changed;
+                                watcher.Created -= _handlers[watcher].created;
+                                watcher.Renamed -= _handlers[watcher].renamed;
+                                watcher.Deleted -= _handlers[watcher].deleted;
+
+                            }
+
+                            watcher.EnableRaisingEvents = false;
+                            watcher.Dispose();
+
+                            Log.Information($"unsubscribe from {watcher.Path}");
+                        }
+                        catch(Exception e) { 
+                            Log.Fatal($"exception unsubscribing from {watcher.Path}");
+                            error = e.Message;
+                        }
+                    });
+
+                    _watchers.Clear();
+                    _handlers.Clear();
+
+                    result = true;
+                }
+                catch(Exception e) { 
+                    Log.Fatal($"exception attempting to unsubscribe");
+                    error = e.Message;
+                }
+                finally { Values.MessageBroker.Publish(new BalloonMessage("results", result ? "Stopped Monitoring" : "Failed To Stop Monitoring", error, result ? ToolTipIcon.Info : ToolTipIcon.Error)); }
+            }
+            else { Log.Information("no watchers to unsubscribe from");  }
         }
 
         private bool AreHashesEqual(byte[] a, byte[] b)
@@ -89,7 +165,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
 
             Log.Debug($"Hashes are not equal, file content HAS changed: {path}");
 
-            _messaging.Publish(new FileChangedMessage("", path));
+            _messaging.Publish(new FileChangedMessage("pass to parser", path));
         }
 
         private void OnFileDeleted(FileSystemEventArgs e, WatchedFolder folder)
@@ -100,7 +176,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 string extension = Path.GetExtension(e.FullPath);
                 string extensionLower = extension.ToLower();
 
-                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Information($"File deleted: {e.FullPath}"); }
+                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Debug($"File deleted: {e.FullPath}"); }
             }
         }
 
@@ -112,7 +188,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 string extension = Path.GetExtension(e.FullPath);
                 string extensionLower = extension.ToLower();
 
-                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Information($"File renamed: {e.FullPath}"); }
+                if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { Log.Debug($"File renamed: {e.FullPath}"); }
             }
         }
 
@@ -125,7 +201,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 string extensionLower = extension.ToLower();
 
                 if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { 
-                    Log.Information($"Raw file changed: {e.FullPath}");
+                    Log.Debug($"Raw file changed: {e.FullPath}");
                     FileChanged(e.FullPath);
                 }
             }
