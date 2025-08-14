@@ -82,7 +82,7 @@
 
 ### Built With
 
-This section should list any major frameworks/libraries used to bootstrap your project. Leave any add-ons/plugins for the acknowledgements section. Here are a few examples.
+These frameworks cam in mighty handy getting this project off the ground.
 
 * [MSAL for .NET](https://github.com/JamesNK/Newtonsoft.Json)
 * [Serilog](https://github.com/serilog/serilog)
