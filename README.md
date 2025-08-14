@@ -18,20 +18,13 @@
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![Unlicense License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 
 
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  <a href="https://github.com/ryanjblajda/TeamsFileNotifier/">
   </a>
 
   <h3 align="center">Best-README-Template</h3>
@@ -94,6 +87,7 @@ This section should list any major frameworks/libraries used to bootstrap your p
 * [MSAL for .NET](https://github.com/JamesNK/Newtonsoft.Json)
 * [Serilog](https://github.com/serilog/serilog)
 * [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json)
+* [Best README Template](https://github.com/ryanjblajda/TeamsFileNotifier/issues)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
