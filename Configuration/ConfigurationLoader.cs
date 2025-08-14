@@ -13,12 +13,12 @@ namespace TeamsFileNotifier.Configuration
             this._logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }       
 
-        public string GetConfigFilePath(string folderName = Values.Namespace, string fileName = Values.Config)
+        public string GetConfigFilePath(string folderName = Values.Namespace, string fileName = Values.DefaultConfigFilename)
         {
             return Path.Combine(Functions.GetDefaultTempPathLocation(_logger, folderName), fileName);
         }
 
-        public Configuration? LoadConfig(string folderName = Values.Namespace, string fileName = Values.Config)
+        public Configuration? LoadConfig(string folderName = Values.Namespace, string fileName = Values.DefaultConfigFilename)
         { 
             string configFile = GetConfigFilePath(folderName, fileName);
 
@@ -39,7 +39,7 @@ namespace TeamsFileNotifier.Configuration
             }
         }
 
-        public void SaveConfig(Configuration config, string folderName = Values.Namespace, string fileName = Values.Config)
+        public void SaveConfig(Configuration config, string folderName = Values.Namespace, string fileName = Values.DefaultConfigFilename)
         {
             string configFile = GetConfigFilePath(folderName, fileName);
 
