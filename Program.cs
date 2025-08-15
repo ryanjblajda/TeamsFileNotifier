@@ -6,7 +6,6 @@ using TeamsFileNotifier.FileSystemMonitor;
 using TeamsFileNotifier.Global;
 using TeamsFileNotifier.Authentication;
 using System.Diagnostics;
-using System.Threading;
 
 class Program
 {
@@ -71,7 +70,7 @@ class Program
     {
         bool isNew = false;
 
-        Values.SingleInstanceMutex = new Mutex(true, Values.Namespace, out isNew);
+        Mutex mutex = new Mutex(true, Values.Namespace, out isNew);
         Log.Information($"Program | this instance is {(isNew ? "new" : "a duplicate")}");
         return isNew;
     }
