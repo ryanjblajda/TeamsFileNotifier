@@ -20,8 +20,6 @@ namespace TeamsFileNotifier.Global
 
         public static string AccessToken = String.Empty;
 
-        public static Mutex SingleInstanceMutex = new Mutex(false);
-
         public static Configuration.Configuration Configuration = new Configuration.Configuration();
 
         public static readonly MessageBroker MessageBroker = new MessageBroker();
