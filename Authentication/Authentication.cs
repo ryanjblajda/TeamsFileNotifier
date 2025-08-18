@@ -18,6 +18,7 @@ namespace TeamsFileNotifier.Authentication
         {
             Values.MessageBroker.Subscribe<AuthenticationFailureMessage>(OnAuthenticationFailed);
             _app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
+            ConfigureTokenCache(_app.UserTokenCache);
         }
 
         private static void OnAuthenticationFailed(AuthenticationFailureMessage message)
@@ -108,9 +109,7 @@ namespace TeamsFileNotifier.Authentication
         }
 
         internal static async void AuthenticationRoutine()
-        {
-            ConfigureTokenCache(_app.UserTokenCache);
-
+        { 
             AuthenticationResult? result = null;
 
             var firstAccount = await GetUsersFirstAccount(_app);
