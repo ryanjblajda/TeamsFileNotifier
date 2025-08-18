@@ -12,10 +12,12 @@ namespace TeamsFileNotifier.Authentication
         private static readonly string[] Scopes = new[] { "User.Read", "Group.Read.All", "ChannelMessage.Send", "ChannelMessage.Read.All" };
         private const string TenantId = "43144288-676d-457c-a9a7-f271a812b8ac"; // e.g., 72f988bf-xxxx-xxxx-xxxx-2d7cd011db47
         private static readonly string Authority = $"https://login.microsoftonline.com/{TenantId}";
+        private static readonly IPublicClientApplication _app;
 
         static Authentication()
         {
             Values.MessageBroker.Subscribe<AuthenticationFailureMessage>(OnAuthenticationFailed);
+            _app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
         }
 
         private static void OnAuthenticationFailed(AuthenticationFailureMessage message)
@@ -107,25 +109,22 @@ namespace TeamsFileNotifier.Authentication
 
         internal static async void AuthenticationRoutine()
         {
-            var app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
-            
-            ConfigureTokenCache(app.UserTokenCache);
+            ConfigureTokenCache(_app.UserTokenCache);
 
             AuthenticationResult? result = null;
 
-            Task<IAccount?> getAccountResult = GetUsersFirstAccount(app);
-            var firstAccount = getAccountResult.Result;
+            var firstAccount = await GetUsersFirstAccount(_app);
 
             //if the account not null, then we should be able to silently retreive a token
             if (firstAccount != null)
             {
-                try { result = await GetAuthenticationTokenSilent(app, firstAccount); }
+                try { result = await GetAuthenticationTokenSilent(_app, firstAccount); }
                 catch (Exception e) { Log.Fatal($"Authentication | unable to silently retrieve token -> {e.Message}"); }
             }
             else
             {
                 //catch any exceptions, but in theory since we know the account is null, we shouldnt fire any
-                try { result = await GetAuthenticationTokenInteractive(app); }
+                try { result = await GetAuthenticationTokenInteractive(_app); }
                 //log the fatal error
                 catch (Exception e) { Log.Fatal($"Authentication | exception encountered attempting to interactively retrieve a token -> {e.Message}"); }
             }
