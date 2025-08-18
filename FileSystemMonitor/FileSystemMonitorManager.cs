@@ -32,12 +32,12 @@ namespace TeamsFileNotifier.FileSystemMonitor
         private void ConfigureWatchers()
         {
             Values.Configuration.WatchedFolders.ForEach(delegate (WatchedFolder folder) {
-                if (!Directory.Exists(folder.Path)) { Log.Warning($"FileSystemMonitorManager | directory does not exist: {folder.Path}"); }
+                if (!Directory.Exists(folder.LocalFilePath)) { Log.Warning($"FileSystemMonitorManager | directory does not exist: {folder.LocalFilePath}"); }
                 else
                 {
                     try
                     {
-                        var watcher = new FileSystemWatcher(folder.Path)
+                        var watcher = new FileSystemWatcher(folder.LocalFilePath)
                         {
                             IncludeSubdirectories = true,
                             EnableRaisingEvents = true,
@@ -59,10 +59,10 @@ namespace TeamsFileNotifier.FileSystemMonitor
                         //store handlers in the dict so we can stop monitoring later
                         _handlers[watcher] = (changedHandler, createdHandler, renamedHandler, deletedHandler);
 
-                        Log.Information($"FileSystemMonitorManager | Started watching folder: {folder.Path}, {folder.Extensions.Count} Extensions To Watch: {String.Join(", ", folder.Extensions.Select(item => item.Extension).ToArray())}");
+                        Log.Information($"FileSystemMonitorManager | Started watching folder: {folder.LocalFilePath}, {folder.Extensions.Count} Extensions To Watch: {String.Join(", ", folder.Extensions.Select(item => item.Extension).ToArray())}");
 
                     }
-                    catch (Exception e) { Log.Fatal($"FileSystemMonitorManager | exception encountered attempting to monitor folder {folder.Path} -> {e.Message}"); }
+                    catch (Exception e) { Log.Fatal($"FileSystemMonitorManager | exception encountered attempting to monitor folder {folder.LocalFilePath} -> {e.Message}"); }
                 }
             });
 
