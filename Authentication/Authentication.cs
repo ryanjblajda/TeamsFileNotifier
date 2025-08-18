@@ -71,7 +71,7 @@ namespace TeamsFileNotifier.Authentication
         {
             // Try to get token silently (from cache)
             var result = await app.AcquireTokenSilent(Scopes, account).ExecuteAsync();
-            Log.Information($"Authentication | token acquired silently -> expires @ {result.ExpiresOn}");
+            Log.Information($"Authentication | token acquired silently -> expires @ {result.ExpiresOn.LocalDateTime}");
 
             return result;
         }
@@ -81,7 +81,7 @@ namespace TeamsFileNotifier.Authentication
             // No token cached or expired, so prompt user login
             var result = await app.AcquireTokenInteractive(Scopes).WithPrompt(Prompt.SelectAccount).ExecuteAsync();
             //log
-            Log.Information($"Authentication | token acquired interactively -> expires @ {result.ExpiresOn}");
+            Log.Information($"Authentication | token acquired interactively -> expires @ {result.ExpiresOn.LocalDateTime}");
 
             return result;
         }
