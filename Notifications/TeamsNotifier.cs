@@ -62,7 +62,7 @@ namespace TeamsFileNotifier.Notifications
 
             string result = String.Empty;
 
-            WatchedFolder? folder = Values.Configuration?.WatchedFolders.Find(item => Functions.IsChildPath(item.Path, path) || Path.GetFullPath(item.Path) == Path.GetFullPath(path));
+            WatchedFolder? folder = Values.Configuration?.WatchedFolders.Find(item => Functions.IsChildPath(item.LocalFilePath, path) || Path.GetFullPath(item.LocalFilePath) == Path.GetFullPath(path));
 
             if (folder != null) { result = folder.TeamsWebhook; }
 
