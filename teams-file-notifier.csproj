@@ -10,9 +10,17 @@
 	<RuntimeIdentifier>win-x86</RuntimeIdentifier>
 	<SelfContained>true</SelfContained>
 	<PublishTrimmed>false</PublishTrimmed>
+	<Prefer32Bit>true</Prefer32Bit>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Identity.Client" Version="4.74.1" />
+    <None Remove="logo.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.76.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.76.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.76.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4-beta1" />
     <PackageReference Include="Serilog" Version="4.3.1-dev-02373" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.1-dev-00953" />
@@ -20,5 +28,18 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="SmartFormat.NET" Version="3.6.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
+  </ItemGroup>
+  <ItemGroup>
+        <None Update="$(NuGetPackageRoot)microsoft.identity.client\4.76.0\runtimes\win-x64\native\MSALRuntime_x64.dll">
+	        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    </None>
+        <None Update="$(NuGetPackageRoot)microsoft.identity.client\4.76.0\runtimes\win-x86\native\MSALRuntime_x86.dll">
+			<CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="logo.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>
