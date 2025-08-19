@@ -1,4 +1,5 @@
 ﻿using Microsoft.Identity.Client;
+using Microsoft.Identity.Client.Broker;
 using Serilog;
 using TeamsFileNotifier.Messaging;
 using System.Security.Cryptography;
@@ -9,7 +10,7 @@ namespace TeamsFileNotifier.Authentication
     internal static class Authentication
     {
         private static readonly System.Threading.Timer tokenExpirationTimer = new System.Threading.Timer(OnTokenExpired);
-        private static readonly string[] Scopes = new[] { "User.Read", "Group.Read.All", "ChannelMessage.Send", "ChannelMessage.Read.All" };
+        private static readonly string[] Scopes = new[] { "User.Read", "User.ReadBasic.All", "ChannelMessage.Send" };
         private const string TenantId = "43144288-676d-457c-a9a7-f271a812b8ac"; // e.g., 72f988bf-xxxx-xxxx-xxxx-2d7cd011db47
         private static readonly string Authority = $"https://login.microsoftonline.com/{TenantId}";
         private static readonly IPublicClientApplication _app;
@@ -17,8 +18,12 @@ namespace TeamsFileNotifier.Authentication
         static Authentication()
         {
             Values.MessageBroker.Subscribe<AuthenticationFailureMessage>(OnAuthenticationFailed);
-            _app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
-            ConfigureTokenCache(_app.UserTokenCache);
+            // optional, enables login with current Windows account
+            // will also prevent outlook from logging out by using the shared cache, and forcing a logout when user logs out of other accounts
+            BrokerOptions brokerOptions = new BrokerOptions(BrokerOptions.OperatingSystems.Windows) { ListOperatingSystemAccounts = true };
+            _app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithBroker(brokerOptions).WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
+            //removed to prevent overwriting WAM cache
+            //ConfigureTokenCache(_app.UserTokenCache);
         }
 
         private static void OnAuthenticationFailed(AuthenticationFailureMessage message)
@@ -27,6 +32,10 @@ namespace TeamsFileNotifier.Authentication
             AuthenticationRoutine();
         }
 
+        /// <summary>
+        /// DEPRECATED - didnt realize that this would cause logouts in other apps
+        /// </summary>
+        /// <param name="tokenCache"></param>
         private static void ConfigureTokenCache(ITokenCache tokenCache)
         {
             string tokenFileFullPath = Path.Combine(Functions.GetDefaultTempPathLocation(Log.Logger), Values.DefaultTokenCacheFilename);
@@ -77,12 +86,25 @@ namespace TeamsFileNotifier.Authentication
             return result;
         }
 
-        internal static async Task<AuthenticationResult> GetAuthenticationTokenInteractive(IPublicClientApplication app)
+        internal static async Task<AuthenticationResult?> GetAuthenticationTokenInteractive(IPublicClientApplication app)
         {
+            AuthenticationResult? result = null;
+
+            //show a notification balloon
+            Values.MessageBroker.Publish(new BalloonMessage("interactive login required", "Please Login", "A window should open momentarily, please log into your CCS New England account to continue.", ToolTipIcon.Info));
             // No token cached or expired, so prompt user login
-            var result = await app.AcquireTokenInteractive(Scopes).WithPrompt(Prompt.SelectAccount).ExecuteAsync();
-            //log
-            Log.Information($"Authentication | token acquired interactively -> expires @ {result.ExpiresOn.LocalDateTime}");
+            using (var hiddenForm = new Form())
+            {
+                hiddenForm.StartPosition = FormStartPosition.Manual;
+                hiddenForm.Size = new Size(1, 1);      // tiny
+                hiddenForm.ShowInTaskbar = false;
+                hiddenForm.Opacity = 0;                // fully invisible
+                hiddenForm.Show();
+
+                result = await app.AcquireTokenInteractive(Scopes).WithParentActivityOrWindow(hiddenForm.Handle).WithPrompt(Prompt.SelectAccount).ExecuteAsync();
+            }
+            //log the result
+            Log.Information($"Authentication | {(result == null ? "token acquisition failure" : "token acquired interactively")} -> expires @ {result?.ExpiresOn.LocalDateTime}");
 
             return result;
         }
@@ -114,14 +136,19 @@ namespace TeamsFileNotifier.Authentication
 
             var firstAccount = await GetUsersFirstAccount(_app);
 
+            bool tryInteractive = false;
+
             //if the account not null, then we should be able to silently retreive a token
             if (firstAccount != null)
             {
                 try { result = await GetAuthenticationTokenSilent(_app, firstAccount); }
-                catch (Exception e) { Log.Fatal($"Authentication | unable to silently retrieve token -> {e.Message}"); }
+                catch (Exception e) {
+                    tryInteractive = true;
+                    Log.Fatal($"Authentication | unable to silently retrieve token -> {e.Message}"); 
+                }
             }
-            else
-            {
+
+            if (firstAccount != null && tryInteractive) { 
                 //catch any exceptions, but in theory since we know the account is null, we shouldnt fire any
                 try { result = await GetAuthenticationTokenInteractive(_app); }
                 //log the fatal error
@@ -135,7 +162,7 @@ namespace TeamsFileNotifier.Authentication
                 tokenExpirationTimer.Change(GetDueTime(result.ExpiresOn), Timeout.Infinite);
                 Log.Information("Authentication | starting token refresh timer");
             }
-            else { Log.Error("Authentication | unable to store token because it is null"); }
+            else { Log.Error("Authentication | not storing token because it is null"); }
         }
     }
 }
