@@ -13,8 +13,8 @@ namespace TeamsFileNotifier.FileSystemMonitor
         public string Extension { get; set; }
         
         [JsonProperty("custom_action")]
-        public string CustomActionMessage { get; set; }
+        public CustomActions CustomAction { get; set; }
 
-        private FileExtensionAction() { this.Extension = String.Empty; this.CustomActionMessage = String.Empty; }
+        private FileExtensionAction() { this.Extension = String.Empty; this.CustomAction = new CustomActions(); }
     }
 }
