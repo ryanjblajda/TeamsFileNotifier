@@ -127,7 +127,7 @@ account with will authenticate against the API and request some permissions to p
 <!-- ROADMAP -->
 ## Roadmap
 
-- [] Add Changelog
+- [ ] Add Changelog
 - [x] Add back to top links
 - [ ] Add "Custom Action" feature to incorporate custom text actions, like tagging people into the content of the card so the right folks get notified
 
