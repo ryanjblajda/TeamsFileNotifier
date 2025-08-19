@@ -6,6 +6,8 @@ using TeamsFileNotifier.FileSystemMonitor;
 using TeamsFileNotifier.Global;
 using TeamsFileNotifier.Authentication;
 using System.Diagnostics;
+using System.Reflection;
+using System.Drawing;
 
 class Program
 {
@@ -32,9 +34,14 @@ class Program
 
         Log.Debug("Program | Configured Tray Options");
 
+        //configure a default icon
+        Icon? icon = SystemIcons.Information;
+        //if we can generate the icon, assign the result
+        if (GenerateIcon() != null) { icon = GenerateIcon(); }
+        //generate the full tray icon
         trayIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Information,
+            Icon = icon,
             ContextMenuStrip = contextMenu,
             Visible = true,
             Text = "Teams File Monitor - Updater"
@@ -54,6 +61,25 @@ class Program
 
             Application.Run();
         }
+    }
+
+    private static Icon? GenerateIcon()
+    {
+        Icon? icon = null;
+
+        var assembly = Assembly.GetExecutingAssembly();
+
+        #if DEBUG
+            Log.Debug("Program | Available Assembly Resources");
+            foreach (string name in assembly.GetManifestResourceNames()) { Log.Debug($"Program | resource : {name}"); }
+        #endif
+
+        using (var stream = assembly.GetManifestResourceStream("teams_file_notifier.logo.ico"))
+        {
+            if (stream != null) { icon = new Icon(stream); }
+        }
+
+        return icon;
     }
 
     private static void DuplicateInstanceExit()
