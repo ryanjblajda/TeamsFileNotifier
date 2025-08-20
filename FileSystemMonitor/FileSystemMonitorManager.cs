@@ -136,7 +136,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
             return true;
         }
 
-        private void OnDebounceTimerExpired(string path)
+        private void OnDebounceTimerExpired(string path, CustomActions action)
         {
             Log.Debug($"FileSystemMonitorManager | Debounce timer fired for: {path}");
 
@@ -165,7 +165,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
 
             Log.Debug($"FileSystemMonitorManager | Hashes are not equal, file content HAS changed: {path}");
 
-            _messaging.Publish(new FileChangedMessage("pass to parser", path));
+            _messaging.Publish(new FileChangedMessage("pass to parser", path, action));
         }
 
         private void OnFileDeleted(FileSystemEventArgs e, WatchedFolder folder)
@@ -202,12 +202,12 @@ namespace TeamsFileNotifier.FileSystemMonitor
 
                 if (folder.Extensions.Find(item => item.Extension == extensionLower) != null) { 
                     Log.Debug($"FileSystemMonitorManager | Raw file changed: {e.FullPath}");
-                    FileChanged(e.FullPath);
+                    FileChanged(e.FullPath, folder.Extensions.Find(item => item.Extension == extensionLower)?.CustomAction);
                 }
             }
         }
 
-        private void FileChanged(string filePath)
+        private void FileChanged(string filePath, CustomActions? action)
         {
             //find an existing timer
             if (_timers.TryGetValue(filePath, out Timer? existingTimer)) { 
@@ -219,7 +219,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
                 //create a timer with a lamda callback so we can dispose of this timer after firing
                 Timer timer = new Timer(_ => {
                     //fire the callback
-                    OnDebounceTimerExpired(filePath);
+                    OnDebounceTimerExpired(filePath, action);
                     // Dispose and remove timer after firing
                     if (_timers.TryRemove(filePath, out Timer? t)) { t.Dispose(); }
                 }, null, Values.DebounceIntervalMS, Timeout.Infinite);
