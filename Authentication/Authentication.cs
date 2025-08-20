@@ -4,6 +4,7 @@ using Serilog;
 using TeamsFileNotifier.Messaging;
 using System.Security.Cryptography;
 using TeamsFileNotifier.Global;
+using Serilog.Events;
 
 namespace TeamsFileNotifier.Authentication
 {
@@ -21,9 +22,42 @@ namespace TeamsFileNotifier.Authentication
             // optional, enables login with current Windows account
             // will also prevent outlook from logging out by using the shared cache, and forcing a logout when user logs out of other accounts
             BrokerOptions brokerOptions = new BrokerOptions(BrokerOptions.OperatingSystems.Windows) { ListOperatingSystemAccounts = true };
-            _app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e").WithBroker(brokerOptions).WithAuthority(Authority).WithRedirectUri("http://localhost/").Build();
+            //only log warnings when running normally
+            LogLevel level = LogLevel.Warning;
+            //if compiled with debug show ALL the things
+            #if DEBUG
+                level = LogLevel.Verbose;
+            #endif
+            
+            _app = PublicClientApplicationBuilder.Create("a18e17ec-975e-423e-a706-a2a5d95e993e")
+                .WithBroker(brokerOptions).
+                WithAuthority(Authority).
+                WithRedirectUri("http://localhost/").
+                WithLogging(LogCallback, level, enablePiiLogging: true, enableDefaultPlatformLogging: false).
+                Build();
             //removed to prevent overwriting WAM cache
             //ConfigureTokenCache(_app.UserTokenCache);
+        }
+
+        private static void LogCallback(LogLevel level, string message, bool containsPii)
+        {
+            // Optionally ignore PII in logs
+            if (containsPii)
+            {
+                Log.Warning("Authentication | Response Contains PII");
+                //return;
+            }
+
+            LogEventLevel serilogLevel = level switch
+            {
+                LogLevel.Error => LogEventLevel.Error,
+                LogLevel.Warning => LogEventLevel.Warning,
+                LogLevel.Info => LogEventLevel.Information,
+                LogLevel.Verbose => LogEventLevel.Debug,
+                _ => LogEventLevel.Information
+            };
+
+            Log.Write(serilogLevel, "MSAL | {message}", message);
         }
 
         private static void OnAuthenticationFailed(AuthenticationFailureMessage message)
@@ -101,7 +135,7 @@ namespace TeamsFileNotifier.Authentication
                 hiddenForm.Opacity = 0;                // fully invisible
                 hiddenForm.Show();
 
-                result = await app.AcquireTokenInteractive(Scopes).WithParentActivityOrWindow(hiddenForm.Handle).WithPrompt(Prompt.SelectAccount).ExecuteAsync();
+                result = await app.AcquireTokenInteractive(Scopes).WithParentActivityOrWindow(hiddenForm.Handle).ExecuteAsync();
             }
             //log the result
             Log.Information($"Authentication | {(result == null ? "token acquisition failure" : "token acquired interactively")} -> expires @ {result?.ExpiresOn.LocalDateTime}");
