@@ -23,11 +23,18 @@ namespace TeamsFileNotifier.Global
 
         public static bool IsChildPath(string parentPath, string childPath)
         {
-            string fullParent = Path.GetFullPath(parentPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            string fullChild = String.Empty, fullParent = String.Empty;
+            StringComparison comparison = StringComparison.OrdinalIgnoreCase;
 
-            string fullChild = Path.GetFullPath(childPath);
+            if (parentPath != String.Empty)
+            {
+                fullParent = Path.GetFullPath(parentPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                fullChild = Path.GetFullPath(childPath);
+
+                comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            }
+            else { return false; }
 
             return fullChild.StartsWith(fullParent, comparison);
         }
