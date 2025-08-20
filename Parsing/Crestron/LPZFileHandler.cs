@@ -9,7 +9,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
 {
     public static class LPZFileReader
     {
-        public static void ParseLPZFile(string lpzFilePath)
+        public static string ParseLPZFile(string lpzFilePath)
         {
             CloudInformation cloudInfo = null;
             Dictionary<int, int> deviceIndexToIPIDMap = null;
@@ -45,7 +45,7 @@ namespace TeamsFileNotifier.Parsing.Crestron
                 content = GenerateTeamsMessageContent(cloudInfo.Devices);
             }
 
-            Values.MessageBroker.Publish(new UpdateTeamsRequestMessage("", Path.GetFileName(lpzFilePath), Path.GetDirectoryName(lpzFilePath), "Crestron Code Updated", content, Values.CrestronIconURL));
+            return content;
         }
 
         private static string GenerateTeamsMessageContent(List<Device> devices)
