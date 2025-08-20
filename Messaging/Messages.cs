@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
+using TeamsFileNotifier.FileSystemMonitor;
 using TeamsFileNotifier.Parsing.Crestron;
 
 namespace TeamsFileNotifier.Messaging
@@ -41,9 +43,9 @@ namespace TeamsFileNotifier.Messaging
         public string FilePath { get; private set; }
 
         public string FileExtension { get; private set; }
-        public string CustomAction { get; private set; }
+        public CustomActions CustomAction { get; private set; }
 
-        public FileChangedMessage(string debugMessage, string path, string action = "")
+        public FileChangedMessage(string debugMessage, string path, CustomActions action)
         {
             FilePath = path;
             DebugMessage = debugMessage;
@@ -56,13 +58,13 @@ namespace TeamsFileNotifier.Messaging
     {
         public string DebugMessage { get; private set; }
         public string Filename { get; private set; }
-
         public string Path { get; private set; }
         public string Title { get; private set; }  
         public string Content {  get; private set; }
         public string IconURL { get; private set; }
+        public CustomActions CustomActions { get; private set; }
 
-        internal UpdateTeamsRequestMessage(string debugMessage, string name, string path, string title, string content, string iconurl)
+        internal UpdateTeamsRequestMessage(string debugMessage, string name, string path, string title, string content, string iconurl, CustomActions action)
         {
             DebugMessage = debugMessage;
             Filename = name;
@@ -70,6 +72,7 @@ namespace TeamsFileNotifier.Messaging
             Path = path;
             Content = content;
             IconURL = iconurl;
+            CustomActions = action;
         }
     }
 }
