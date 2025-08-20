@@ -30,7 +30,7 @@ namespace TeamsFileNotifier.Parsing
                 }
                 else { content = $"!! Hash Changed !!\r\n\r\n\tAssuming New Revision/Important Change Was Made @ {DateTime.Now.ToString()}"; }
                 
-                Values.MessageBroker.Publish(new UpdateTeamsRequestMessage($"{message.FileExtension} changed", Path.GetFileName(message.FilePath), Path.GetDirectoryName(message.FilePath), $"{message.FileExtension.ToUpper()} File Updated", content, Values.CCSIconURL));
+                Values.MessageBroker.Publish(new UpdateTeamsRequestMessage($"{message.FileExtension} changed", Path.GetFileName(message.FilePath), Path.GetDirectoryName(message.FilePath), $"{message.FileExtension.ToUpper()} File Updated", content, Values.CCSIconURL, message.CustomAction));
             }
         }
 
