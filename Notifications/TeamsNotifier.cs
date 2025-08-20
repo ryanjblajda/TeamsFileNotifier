@@ -9,6 +9,10 @@ using TeamsFileNotifier.FileSystemMonitor;
 using TeamsFileNotifier.Global;
 using TeamsFileNotifier.Messaging;
 using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using AdaptiveCards;
+using static System.Collections.Specialized.BitVector32;
+using teams_file_notifier.Notifications;
 
 namespace TeamsFileNotifier.Notifications
 {
@@ -49,64 +53,23 @@ namespace TeamsFileNotifier.Notifications
             {
                 (string team, string channel) = Functions.ParseDetailsFromWebhook(Functions.GetWebhook(message.Path));
 
-                (string url, StringContent content) = GenerateRequest(team, channel, AdaptiveCardBuilder.BuildAdaptiveCard(message.Title, message.Filename, "", message.Content, message.IconURL, message.CustomActions));
-
-                Notify(content, url);
+                Notify(team, channel, ChatMessageBuilder.GenerateChatMessage(message));
             }
-        }        
-
-        private void Notify(StringContent message, string url)
+        }
+        private async void Notify(string team, string channel, ChatMessage message)
         {
             try
             {
-                HttpStatusCode responseCode = HttpStatusCode.Forbidden;
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Values.AccessToken);
-                
-                var response = client.PostAsync(url, message).ContinueWith(task =>
+                ChatMessage? response = await Values.GraphService.Teams[team].Channels[channel].Messages.PostAsync(message);
+                if (response != null)
                 {
-                    if (task.IsCanceled) { Log.Warning("TeamsNotifier | canceled"); }
-                    else if (task.IsFaulted) { Log.Error("TeamsNotifier | faulted"); }
-                    else if (task.IsCompletedSuccessfully) {
-                        var response = task.Result;
-                        Log.Debug(response.ToString());
-                        response.Content.ReadAsStringAsync().ContinueWith(task => { var response = task.Result; Log.Debug(response); });
-                        responseCode = response.StatusCode;
-                    }
-
-                    if (responseCode == HttpStatusCode.OK || responseCode == HttpStatusCode.Created) {
-                        Log.Information($"TeamsNotifier | succesful update to teams --> {responseCode}");
-                        Values.MessageBroker.Publish(new BalloonMessage("show success", "Update Successs", " ", ToolTipIcon.Info, 1000)); }
-                    else if (responseCode == HttpStatusCode.Unauthorized) { 
-                        Log.Warning($"TeamsNotifier | failure to update {(task.Exception == null ? task.Result.ToString() : task.Exception.Message)} --> http {responseCode.ToString()}");
-                        Values.MessageBroker.Publish(new AuthenticationFailureMessage());
-                    }
-                    else {
-                        Values.MessageBroker.Publish(new BalloonMessage("show failure", "Update Failed", task.Exception == null ? task.Result.ToString() : task.Exception.Message, ToolTipIcon.Error, 1000));
-                        Log.Warning($"TeamsNotifier | failure to update {(task.Exception == null ? task.Result.ToString() : task.Exception.Message)} --> http {responseCode.ToString()}");
-                    }
-                });
+                    Log.Information($"TeamsNotifier | {response.Body?.Content}");
+                }
             }
             catch (Exception ex)
             {
                 Log.Fatal($"TeamsNotifier | Exception posting to Teams: {ex.Message}");
             }
-        }
-
-        private (string, StringContent) GenerateRequest(string teamId, string channelId, JObject payload)
-        {
-            var json = JsonConvert.SerializeObject(payload, Formatting.Indented);
-
-            Log.Debug(json);
-            
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var url = $"https://graph.microsoft.com/v1.0/teams/{teamId}/channels/{channelId}/messages";
-
-            Log.Information($"TeamsNotifier | generated microsoft graph url {url}");
-            Log.Debug($"TeamsNotifier | generated card content {json}");
-
-            return (url, content);
         }
     }
 }

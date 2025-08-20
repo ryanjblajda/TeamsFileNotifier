@@ -1,5 +1,4 @@
 ﻿using Serilog;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
@@ -12,247 +11,216 @@ namespace TeamsFileNotifier.Notifications
 {
     public static class AdaptiveCardBuilder
     {
-        public static JObject BuildAdaptiveCard(string title, string fileName, string fileUrl, string content, string iconurl, CustomActions actions)
+        public static string BuildAdaptiveCard(string title, string fileName, string fileUrl, string content, string iconurl, CustomActions actions, ChatMessage chat)
         {
-            JObject card = new JObject
+            AdaptiveCard card = GenerateAdaptiveCardTemplate(title, fileName, fileUrl, content, iconurl);
+
+            HandleCustomActions(card, chat, actions);
+
+            return card.ToJson();
+        }
+
+        private static AdaptiveCard GenerateAdaptiveCardTemplate(string title, string file, string fileurl, string content, string icon)
+        {
+            // Build the card
+            var card = new AdaptiveCard(new AdaptiveSchemaVersion(1, 6))
             {
-                ["$schema"] = "http://adaptivecards.io/schemas/adaptive-card.json",
-                ["version"] = "1.6",
-                ["type"] = "AdaptiveCard",
-                ["msteams"] = new JObject
+                // Teams-specific properties
+                AdditionalProperties = new SerializableDictionary<string, object>
                 {
-                    ["width"] = "full"
-                },
-                ["body"] = new JArray
+                    ["msteams"] = new Dictionary<string, object>
+                    {
+                        ["width"] = "full",
+                        ["entities"] = new List<object>()
+                    }
+                }
+            };
+
+            // === First row: Logo + Title ===
+            card.Body.Add(new AdaptiveColumnSet
+            {
+                Columns = new List<AdaptiveColumn>
                 {
-                    // First ColumnSet (logo + heading)
-                    new JObject
+                    new AdaptiveColumn
                     {
-                        ["type"] = "ColumnSet",
-                        ["columns"] = new JArray
+                        Width = "stretch",
+                        Spacing = AdaptiveSpacing.Medium,
+                        VerticalContentAlignment = AdaptiveVerticalContentAlignment.Center,
+                        Items = new List<AdaptiveElement>
                         {
-                            new JObject
+                            new AdaptiveImage(icon)
                             {
-                                ["type"] = "Column",
-                                ["width"] = "stretch",
-                                ["spacing"] = "Medium",
-                                ["items"] = new JArray
-                                {
-                                    new JObject
-                                    {
-                                        ["type"] = "Image",
-                                        ["url"] = iconurl,
-                                        ["height"] = "30px"
-                                    }
-                                },
-                                ["height"] = "stretch",
-                                ["verticalContentAlignment"] = "Center"
-                            },
-                            new JObject
-                            {
-                                ["type"] = "Column",
-                                ["width"] = "stretch",
-                                ["items"] = new JArray
-                                {
-                                    new JObject
-                                    {
-                                        ["type"] = "TextBlock",
-                                        ["text"] = title,
-                                        ["wrap"] = true,
-                                        ["height"] = "stretch",
-                                        ["style"] = "heading",
-                                        ["size"] = "ExtraLarge"
-                                    }
-                                }
+                                Height = AdaptiveHeight.Auto,
+                                PixelHeight = 30
                             }
                         }
                     },
-                    // Second ColumnSet (File Name label and value)
-                    new JObject
+                    new AdaptiveColumn
                     {
-                        ["type"] = "ColumnSet",
-                        ["columns"] = new JArray
+                        Width = "stretch",
+                        Items = new List<AdaptiveElement>
                         {
-                            new JObject
+                            new AdaptiveTextBlock($"{Path.GetExtension(file).ToUpper()} File Updated")
                             {
-                                ["type"] = "Column",
-                                ["width"] = "auto",
-                                ["items"] = new JArray
-                                {
-                                    new JObject
-                                    {
-                                        ["type"] = "TextBlock",
-                                        ["text"] = "File Name:",
-                                        ["wrap"] = true,
-                                        ["style"] = "heading",
-                                        ["separator"] = true,
-                                        ["size"] = "Large"
-                                    }
-                                }
-                            },
-                            new JObject
+                                Wrap = true,
+                                Size = AdaptiveTextSize.ExtraLarge,
+                                Style = AdaptiveTextBlockStyle.Heading
+                            }
+                        }
+                    }
+                }
+            });
+
+            // === Second row: File Name ===
+            card.Body.Add(new AdaptiveColumnSet
+            {
+                Columns = new List<AdaptiveColumn>
+                {
+                    new AdaptiveColumn
+                    {
+                        Width = "auto",
+                        Items = new List<AdaptiveElement>
+                        {
+                            new AdaptiveTextBlock("File Name:")
                             {
-                                ["type"] = "Column",
-                                ["width"] = "stretch",
-                                ["items"] = new JArray
-                                {
-                                    new JObject
-                                    {
-                                        ["type"] = "TextBlock",
-                                        ["text"] = fileName,
-                                        ["wrap"] = true,
-                                        ["height"] = "stretch",
-                                        ["weight"] = "Lighter",
-                                        ["size"] = "Large"
-                                    }
-                                }
+                                Wrap = true,
+                                Style = AdaptiveTextBlockStyle.Heading,
+                                Size = AdaptiveTextSize.Large,
+                                Separator = true
                             }
                         }
                     },
-                    // Third ColumnSet (IP Table header)
-                    new JObject
+                    new AdaptiveColumn
                     {
-                        ["type"] = "ColumnSet",
-                        ["columns"] = new JArray
+                        Width = "stretch",
+                        Items = new List<AdaptiveElement>
                         {
-                            new JObject
+                            new AdaptiveTextBlock(file)
                             {
-                                ["type"] = "Column",
-                                ["width"] = "stretch",
-                                ["items"] = new JArray
-                                {
-                                    new JObject
-                                    {
-                                        ["type"] = "TextBlock",
-                                        ["text"] = "Details",
-                                        ["wrap"] = true,
-                                        ["horizontalAlignment"] = "Left",
-                                        ["spacing"] = "None",
-                                        ["height"] = "stretch",
-                                        ["style"] = "columnHeader",
-                                        ["size"] = "Large",
-                                        ["separator"] = true
-                                    }
-                                }
+                                Wrap = true,
+                                Size = AdaptiveTextSize.Large,
+                                Weight = AdaptiveTextWeight.Lighter
                             }
                         }
-                    },
-                    // Fourth ColumnSet (RichTextBlock with IP list)
-                    new JObject
+                    }
+                }
+            });
+
+            // === Third row: "Details" header ===
+            card.Body.Add(new AdaptiveColumnSet
+            {
+                Columns = new List<AdaptiveColumn>
+                {
+                    new AdaptiveColumn
                     {
-                        ["type"] = "ColumnSet",
-                        ["columns"] = new JArray
+                        Width = "stretch",
+                        Items = new List<AdaptiveElement>
                         {
-                            new JObject
+                            new AdaptiveTextBlock("Details")
                             {
-                                ["type"] = "Column",
-                                ["width"] = "stretch",
-                                ["items"] = new JArray
+                                Wrap = true,
+                                Style = AdaptiveTextBlockStyle.Heading, // custom style
+                                Size = AdaptiveTextSize.Large,
+                                Separator = true
+                            }
+                        }
+                    }
+                }
+            });
+
+            // === Last row: Empty RichTextBlock ===
+            card.Body.Add(new AdaptiveColumnSet
+            {
+                Columns = new List<AdaptiveColumn>
+                {
+                    new AdaptiveColumn
+                    {
+                        Width = "stretch",
+                        Items = new List<AdaptiveElement>
+                        {
+                            new AdaptiveRichTextBlock
+                            {
+                                Separator = true,
+                                Inlines = new List<AdaptiveInline>
                                 {
-                                    new JObject
-                                    {
-                                        ["type"] = "RichTextBlock",
-                                        ["separator"] = true,
-                                        ["inlines"] = new JArray
-                                        {
-                                            new JObject
-                                            {
-                                                ["type"] = "TextRun",
-                                                ["text"] = ""
-                                            }
-                                        }
-                                    }
+                                    new AdaptiveTextRun(content) // empty run
                                 }
                             }
                         }
                     }
                 }
-            };
+            });
 
-            JObject payload = GenerateMessage(card);
-            
-            HandleCustomActions(actions, payload, card);
-
-            SerializeContent(payload);
-
-            return payload;
+            return card;
         }
 
-        private static void SerializeContent(JObject card)
-        {
-            card["attachments"][0]["content"] = JsonConvert.SerializeObject(card["attachments"][0]["content"]);
-        }
-
-        private static void HandleCustomActions(CustomActions actions, JObject message, JObject card)
+        private static void HandleCustomActions(AdaptiveCard card, ChatMessage chat, CustomActions actions)
         {
             if (card != null)
             {
                 if (actions.TagTeamMembers.Count != 0)
                 {
-                    Log.Information("adding tagged team members to post");
-                    card["msteams"]["entities"] = GenerateTaggedTeamMembers(actions.TagTeamMembers);
+                    Log.Information("AdaptiveCardBuilder | adding tagged team members to post");
+                    var entities = GetAllTaggedTeamMemberDetails(actions.TagTeamMembers, Values.AccessToken);
+                    chat.Mentions = GenerateAllEntitiesMentionList(entities.Result);
+                    ((Dictionary<string, object>)card.AdditionalProperties["msteams"])["entities"] = chat.Mentions;
 
-                    if ((JArray)card["msteams"]["entities"] != null) {
-
-                        var bodyArray = (JArray)card["body"];
-                        bodyArray.Insert(bodyArray.Count - 1, GenerateMentionLineFromEntities((JArray)card["msteams"]["entities"]));
-                    }
+                    if (chat.Body != null) { chat.Body.Content = GenerateMentionFromEntities(entities.Result.Select(item => (entities.Result.IndexOf(item), item.name)).ToList()) + chat.Body.Content; }
                 }
-                else { Log.Debug("no tagged team members to add"); }
+                else { Log.Debug("AdaptiveCardBuilder | no tagged team members to add"); }
             }
-            else { Log.Debug("card null"); }
+            else { Log.Debug("AdaptiveCardBuilder | card null"); }
         }
 
-        private static JArray GenerateTaggedTeamMembers(List<string> names)
+        private static List<ChatMessageMention> GenerateAllEntitiesMentionList(List<(string id, string name)> mentions)
         {
-            var tagged = GetAllTaggedTeamMemberDetails(names, Values.AccessToken);
-            return GenerateMentionEntities(tagged.Result);
-        }
+            var entities = new List<ChatMessageMention>();
 
-        private static JObject GenerateMessage(JObject adaptiveCard)
-        {
-            var payload = new JObject()
+            mentions.ForEach(item =>
             {
-                ["body"] = new JObject()
+                (string id, string name) = item;
+                entities.Add(GenerateEntityMention(mentions.IndexOf(item), id, name));
+            });
+
+            return entities;
+        }
+
+        private static ChatMessageMention GenerateEntityMention(int index, string id, string name)
+        {
+            var mention = new ChatMessageMention
+            {
+                Id = index,
+                MentionText = $"{name}",
+                Mentioned = new ChatMessageMentionedIdentitySet() 
                 {
-                    ["contentType"] = "html",
-                    ["content"] = "<attachment id=\"1\"></attachment>"
-                },
-                ["attachments"] = new JArray()
-                {
-                    new JObject()
-                    {
-                        ["id"] = "1",
-                        ["contentType"] = "application/vnd.microsoft.card.adaptive",
-                        ["contentUrl"] = null,
-                        ["content"] = adaptiveCard
+                    User = new Identity() 
+                    { 
+                        Id = id,
+                        DisplayName = name
                     }
                 }
             };
 
-            return payload;
+            return mention;
         }
-
-        private static async Task<(string id, string name)> GetTaggedTeamMemberByEmail(string email, string accessToken)
+        private static async Task<List<(string id, string name)>> GetAllTaggedTeamMemberDetails(List<string> usernames, string token)
         {
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            List<(string id, string name)> details = new List<(string id, string name)>();
 
-            string requestUrl = $"https://graph.microsoft.com/v1.0/users?$filter=userPrincipalName eq '{email}' or mail eq '{email}'&$select=id,displayName";
+            foreach (var user in usernames)
+            {
 
-            var response = await client.GetAsync(requestUrl);
+                string check = CheckUsername(user);
 
-            if (!response.IsSuccessStatusCode) { return ("", ""); }
+                var result = await GetTaggedTeamMemberByEmail(check, token);
+                if (result.id != "" && result.name != "")
+                {
+                    Log.Information($"AdaptiveCardBuilder | Adding {result.name} -> {result.id} to the tagged member list");
+                    details.Add(result);
+                }
+            }
 
-            string content = await response.Content.ReadAsStringAsync();
-            
-            var json = JObject.Parse(content);
-
-            var user = json["value"]?.FirstOrDefault();
-            
-            if (user == null) return ("", "");
-            
-            return (user["id"] == null ? "": user["id"].ToString(), user["displayName"] == null ? "" : user["displayName"].ToString());
+            return details;
         }
 
         private static string CheckUsername(string username)
@@ -270,63 +238,36 @@ namespace TeamsFileNotifier.Notifications
             return result;
         }
 
-        private static async Task<List<(string id, string name)>> GetAllTaggedTeamMemberDetails(List<string> usernames, string token)
+        private static async Task<(string id, string name)> GetTaggedTeamMemberByEmail(string email, string accessToken)
         {
-            List<(string id, string name)> details = new List<(string id, string name)>();
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-            foreach (var user in usernames) {
+            string requestUrl = $"https://graph.microsoft.com/v1.0/users?$filter=userPrincipalName eq '{email}' or mail eq '{email}'&$select=id,displayName";
 
-                string check = CheckUsername(user);
+            var response = await client.GetAsync(requestUrl);
 
-                var result = await GetTaggedTeamMemberByEmail(check, token);
-                if (result.id != "" && result.name != "") {
-                    Log.Information($"AdaptiveCardBuilder | Adding {result.name} -> {result.id} to the tagged member list");
-                    details.Add(result); 
-                }               
-            }
+            if (!response.IsSuccessStatusCode) { return ("", ""); }
 
-            return details;
+            string content = await response.Content.ReadAsStringAsync();
+
+            var json = JObject.Parse(content);
+
+            var user = json["value"]?.FirstOrDefault();
+
+            if (user == null) return ("", "");
+
+            return (user["id"] == null ? "" : user["id"].ToString(), user["displayName"] == null ? "" : user["displayName"].ToString());
         }
 
-        public static JObject GenerateMentionLineFromEntities(JArray entities)
+        private static string GenerateMentionFromEntities(List<(int, string)> entities)
         {
             //extract the name of each team member to be mentioned
-            var mentions = String.Join(" ", entities.Select(e => $"<at>{e["mentioned"]?["name"]?.ToString()}</at>").ToArray());
-            
-            //join the members and separate with the characters below
-            // Create a new RichTextBlock with the mention line
-            var mentionBlock = new JObject
-            {
-                ["type"] = "TextBlock",
-                ["text"] = mentions,
-                ["wrap"] = true
-            };
+            var mentionString = String.Join(", ", entities.Select(e => $"<at id=\"{e.Item1}\">{e.Item2}</at>").ToArray());
 
-            return mentionBlock;
-        }
+            Log.Debug($"AdaptiveCardBuilder | Generated Mentions: {mentionString}");
 
-        private static JArray GenerateMentionEntities(List<(string id, string name)> mentions)
-        {
-            var entities = new JArray();
-
-            mentions.ForEach(item =>
-            {
-                var (id, name) = item;
-                var atTag = $"<at>{name}</at>";
-
-                entities.Add(new JObject
-                {
-                    ["type"] = "mention",
-                    ["text"] = atTag,
-                    ["mentioned"] = new JObject
-                    {
-                        ["id"] = id,
-                        ["name"] = name
-                    }
-                });
-            });
-
-            return entities;
+            return mentionString;
         }
     }
 }
