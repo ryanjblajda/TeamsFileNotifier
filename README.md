@@ -140,7 +140,7 @@ shown below is an example of a config file json that you could use to monitor fo
                     "extension":".vtz", 
                     "custom_action":
                     {
-                        "notify_team_members": ["apuccilli"]
+                        "notify_team_members": ["auser"]
                     }
                 }
             ]
@@ -154,7 +154,7 @@ shown below is an example of a config file json that you could use to monitor fo
                     "extension":".json",
                     "custom_action":
                     {
-                        "notify_team_members": ["nhart"]
+                        "notify_team_members": ["buser"]
                     }
                 }
             ]
@@ -167,14 +167,14 @@ shown below is an example of a config file json that you could use to monitor fo
                     "extension":".lpz",
                     "custom_action":
                     {
-                        "notify_team_members": ["sbourgeois"]
+                        "notify_team_members": ["cuser"]
                     }
                 },
                 {
                     "extension":".vtz",
                     "custom_action":
                     {
-                        "notify_team_members": ["sbourgeois"]
+                        "notify_team_members": ["cuser"]
                     }
                 }
              ]
