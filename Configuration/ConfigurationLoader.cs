@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Serilog;
-using Serilog.Core;
 using TeamsFileNotifier.Global;
 
 namespace TeamsFileNotifier.Configuration
@@ -28,8 +27,21 @@ namespace TeamsFileNotifier.Configuration
             try
             {
                 string json = File.ReadAllText(configFile);
+                
                 Log.Debug(json);
-                var config = JsonConvert.DeserializeObject<Configuration>(json);
+                
+                string sanitized = Sanitizer.SanitizeFileContents(json);
+
+                if (json != sanitized)
+                {
+                    Log.Information($"ConfigurationLoader | received sanitized file contents, updating the config file");
+
+                    File.WriteAllText(configFile, sanitized);
+
+                    Log.Information($"ConfigurationLoader | wrote out the sanitized text to the config file");
+                }
+
+                var config = JsonConvert.DeserializeObject<Configuration>(sanitized);
                 return config;
             }
             catch (Exception ex)
