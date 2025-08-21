@@ -120,6 +120,69 @@ account with will authenticate against the API and request some permissions to p
 <!-- USAGE EXAMPLES -->
 ## Usage
 
+shown below is an example of a config file json that you could use to monitor folders, with sensitive information removed. 
+
+- path
+  - the path you want to monitor for file changes on your computer
+- webhook 
+  - a link to a microsoft teams channel
+-
+
+```
+    {
+     "folders": [
+        {
+            "path":"D:/WORK/AUDIO",
+            "webhook":"https://link-to-teams-channel",
+            "extensions" : [
+                { "extension":".qsys" }, { "extension":".lpz" }, { "extension":".txt" }, 
+                { 
+                    "extension":".vtz", 
+                    "custom_action":
+                    {
+                        "notify_team_members": ["apuccilli"]
+                    }
+                }
+            ]
+        },
+        {
+            "path":"D:\\Example Folder 2\\Documents",
+            "webhook":"https://link-to-teams-channel",
+            "extensions" : [
+                { "extension":".txt" }, 
+                { 
+                    "extension":".json",
+                    "custom_action":
+                    {
+                        "notify_team_members": ["nhart"]
+                    }
+                }
+            ]
+        },
+        {
+            "webhook":"https://link-to-teams-channel",
+            "path":"D:/Example Folder/PROGRAMMING",
+             "extensions" : [
+                { 
+                    "extension":".lpz",
+                    "custom_action":
+                    {
+                        "notify_team_members": ["sbourgeois"]
+                    }
+                },
+                {
+                    "extension":".vtz",
+                    "custom_action":
+                    {
+                        "notify_team_members": ["sbourgeois"]
+                    }
+                }
+             ]
+        }
+     ]   
+    }
+    
+```
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
