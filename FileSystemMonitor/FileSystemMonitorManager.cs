@@ -31,7 +31,7 @@ namespace TeamsFileNotifier.FileSystemMonitor
 
         private void ConfigureWatchers()
         {
-            Values.Configuration.WatchedFolders.ForEach(delegate (WatchedFolder folder) {
+            Values.Configuration?.WatchedFolders.ForEach(delegate (WatchedFolder folder) {
                 if (!Directory.Exists(folder.Path)) { Log.Warning($"FileSystemMonitorManager | directory does not exist: {folder.Path}"); }
                 else
                 {
