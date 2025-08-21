@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace teams_file_notifier.Configuration
+namespace TeamsFileNotifier.Configuration
 {
     internal static class Sanitizer
     {
