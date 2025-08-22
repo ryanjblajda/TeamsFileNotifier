@@ -51,7 +51,7 @@ namespace TeamsFileNotifier.Notifications
             //only send update if required
             if (sendUpdate)
             {
-                (string team, string channel) = Functions.ParseDetailsFromWebhook(Functions.GetWebhook(message.Path));
+                (string team, string channel) = URL.ParseDetailsFromWebhook(URL.GetWebhook(message.Path));
 
                 Notify(team, channel, ChatMessageBuilder.GenerateChatMessage(message), message);
             }
