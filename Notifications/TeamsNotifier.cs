@@ -62,15 +62,29 @@ namespace TeamsFileNotifier.Notifications
             try
             {
                 ChatMessage? response = await Values.GraphService.Teams[team].Channels[channel].Messages.PostAsync(message);
+                
                 if (response != null)
                 {
-                    Log.Information($"TeamsNotifier | {response.Body?.Content}");
+                    string log = GenerateSuccessfulUpdateBalloonContent(request, response);
+                    Values.MessageBroker.Publish(new BalloonMessage("success", $"Notification Sent: {request.Filename}", log, ToolTipIcon.Info));
+                    Log.Information($"TeamsNotifier | {log}");
                 }
             }
             catch (Exception ex)
             {
                 Log.Fatal($"TeamsNotifier | Exception posting to Teams: {ex.Message}");
             }
+        }
+
+        private string GenerateSuccessfulUpdateBalloonContent(UpdateTeamsRequestMessage message, ChatMessage response)
+        {
+            StringBuilder builder = new StringBuilder();
+            //start off with the team name
+            builder.Append($"Post created @ {response.CreatedDateTime?.LocalDateTime} ");
+            //if tag team members exists, add their info to the content, if not just append empty
+            builder.Append(message.CustomActions.TagTeamMembers.Count > 0 ? $"{String.Join(", ", message.CustomActions.TagTeamMembers.ToArray())} were mentioned" : "");
+
+            return builder.ToString();
         }
     }
 }
