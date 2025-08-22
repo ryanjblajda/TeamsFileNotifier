@@ -72,6 +72,7 @@ namespace TeamsFileNotifier.Notifications
             }
             catch (Exception ex)
             {
+                Values.MessageBroker.Publish(new BalloonMessage("failure", $"Notification Failed: {request.Filename}", ex.Message, ToolTipIcon.Error));
                 Log.Fatal($"TeamsNotifier | Exception posting to Teams: {ex.Message}");
             }
         }
