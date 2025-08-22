@@ -53,10 +53,11 @@ namespace TeamsFileNotifier.Notifications
             {
                 (string team, string channel) = Functions.ParseDetailsFromWebhook(Functions.GetWebhook(message.Path));
 
-                Notify(team, channel, ChatMessageBuilder.GenerateChatMessage(message));
+                Notify(team, channel, ChatMessageBuilder.GenerateChatMessage(message), message);
             }
         }
-        private async void Notify(string team, string channel, ChatMessage message)
+
+        private async void Notify(string team, string channel, ChatMessage message, UpdateTeamsRequestMessage request)
         {
             try
             {
